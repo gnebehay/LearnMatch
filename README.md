@@ -1,3 +1,15 @@
+LearnMatch: Structured Output Tracking with Kernels
+-------------------------------------------------------------------------------
+
+STRUCK is part of the [Visual Object Tracking Repository](https://github.com/gnebehay/VOTR),
+which aims at providing a central repository for state-of-the-art tracking algorithms that are freely available.
+The source code for this tracker was obtained from its
+[project website](http://www.samhare.net/research/keypoints/code)
+and extended by a challenge mode.
+The following description was copied literally from the original author.
+
+README
+-------------------------------------------------------------------------------
 Efficient Online Structured Output Learning for Keypoint-Based Object Tracking
 
 Code to accompany the paper:
