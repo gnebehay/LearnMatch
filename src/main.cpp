@@ -36,6 +36,8 @@
 #include "Video.h"
 #include "Utils.h"
 
+#include "vot.hpp"
+
 using namespace std;
 using namespace cv;
 
@@ -53,7 +55,83 @@ int main(int argc, char* argv[])
 	Video* pVideoInput = 0;
 	Video* pVideoResults = 0;
 	vector<Mat> groundTruth;
+	Mat frame, frameGrey;
 	
+	srand(conf.seed);
+	
+	Detector detector(conf);
+
+	//Check if --challenge was passed as an argument
+	bool challengeMode = false;
+	for (int i = 1; i < argc; i++) {
+		if (strcmp("--challenge", argv[i]) == 0) {
+			challengeMode = true;
+		}
+	}
+
+
+    if (challengeMode) {
+
+        //load region, images and prepare for output
+        VOT vot_io("region.txt", "images.txt", "output.txt");
+
+        //img = firts frame, initPos = initial position in the first frame
+        cv::Rect initPos = vot_io.getInitRectangle();
+        vot_io.getNextImage(frame);
+        cvtColor(frame, frameGrey, CV_RGB2GRAY);
+
+        //output init also bbox
+        vot_io.outputBoundingBox(initPos);
+
+        rect = IntRect(initPos.x, initPos.y, initPos.width, initPos.height);
+
+        detector.SetModel(frameGrey, rect);
+
+		while (vot_io.getNextImage(frame) == 1){
+			cvtColor(frame, frameGrey, CV_RGB2GRAY);
+			
+			//Run detector
+			detector.Detect(frameGrey, conf.enableLearning);
+			
+			if (detector.HasDetection())
+			{
+				vector<Point2f> cornersProj(4);
+
+				double x_min;
+				double y_min;
+				double x_max;
+				double y_max;
+
+				Mat x_values = Mat::zeros(4,1, CV_64F);
+				x_values.at<double>(0) = cornersProj[0].x;
+				x_values.at<double>(1) = cornersProj[1].x;
+				x_values.at<double>(2) = cornersProj[2].x;
+				x_values.at<double>(3) = cornersProj[3].x;
+
+				Mat y_values = Mat::zeros(4,1, CV_64F);
+				y_values.at<double>(0) = cornersProj[0].y;
+				y_values.at<double>(1) = cornersProj[1].y;
+				y_values.at<double>(2) = cornersProj[2].y;
+				y_values.at<double>(3) = cornersProj[3].y;
+
+				minMaxLoc(x_values, &x_min, &x_max);
+				minMaxLoc(y_values, &y_min, &y_max);
+
+				Point2f tl = Point2f(x_min, y_min);
+				Point2f br = Point2f(x_max, y_max);
+
+				Rect output = Rect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+				vot_io.outputBoundingBox(output);
+
+			} else {
+				vot_io.p_output_stream << "nan,nan,nan,nan" << std::endl;  
+			}
+		}
+		
+		return EXIT_SUCCESS;
+    }
+
 	bool useVideo = false;
 	bool configRead = false;
 	for (int i = 1; i < argc; ++i)
@@ -85,10 +163,7 @@ int main(int argc, char* argv[])
 	
 	cout << "config:" << endl;
 	cout << conf << endl;
-	
-	srand(conf.seed);
-	
-	Detector detector(conf);
+
 	
 	if (conf.useVideo)
 	{
@@ -137,7 +212,6 @@ int main(int argc, char* argv[])
 		cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480.0);
 	}
 	
-	Mat frame, frameGrey;
 	Video* pVideoOutput = 0;
 	bool doFlip = false;
 	if (!conf.quietMode)
